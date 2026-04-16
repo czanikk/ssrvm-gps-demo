@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>SSRVM GPS — Parent Login</title>
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body class="login-body">
+
+  <div class="login-page">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="login-card">
+
+      <div class="login-logo">
+        <div class="logo-icon">🚌</div>
+        <h1>SSRVM GPS</h1>
+        <p>Sri Sri Ravishankar Vidya Mandir</p>
+      </div>
+
+      <!-- Phone Step -->
+      <div id="step-phone">
+        <h2 class="form-title">Parent Login</h2>
+        <p class="form-subtitle">Enter your registered mobile number</p>
+
+        <div class="input-group">
+          <span class="input-prefix">+91</span>
+          <input
+            type="tel"
+            id="phone-input"
+            placeholder="9876543210"
+            maxlength="10"
+            autocomplete="tel"
+          />
+        </div>
+
+        <div class="demo-hint">
+          <span>🎯 Demo numbers:</span>
+          <button class="demo-fill" onclick="fillDemo('9876543210')">9876543210</button>
+          <button class="demo-fill" onclick="fillDemo('9876543211')">9876543211</button>
+          <button class="demo-fill" onclick="fillDemo('9876543212')">9876543212</button>
+        </div>
+
+        <button class="btn-primary" id="send-otp-btn" onclick="sendOTP()">
+          Get OTP →
+        </button>
+
+        <p class="login-note">📱 OTP sent via SMS in real app</p>
+      </div>
+
+      <!-- OTP Step -->
+      <div id="step-otp" class="hidden">
+        <button class="back-btn" onclick="backToPhone()">← Back</button>
+        <h2 class="form-title">Enter OTP</h2>
+        <p class="form-subtitle" id="otp-subtitle">Sent to +91 XXXXXXXXXX</p>
+
+        <div class="otp-boxes">
+          <input type="tel" class="otp-box" maxlength="1" id="otp-0" oninput="otpInput(0)" onkeydown="otpKey(event,0)" />
+          <input type="tel" class="otp-box" maxlength="1" id="otp-1" oninput="otpInput(1)" onkeydown="otpKey(event,1)" />
+          <input type="tel" class="otp-box" maxlength="1" id="otp-2" oninput="otpInput(2)" onkeydown="otpKey(event,2)" />
+          <input type="tel" class="otp-box" maxlength="1" id="otp-3" oninput="otpInput(3)" onkeydown="otpKey(event,3)" />
+          <input type="tel" class="otp-box" maxlength="1" id="otp-4" oninput="otpInput(4)" onkeydown="otpKey(event,4)" />
+          <input type="tel" class="otp-box" maxlength="1" id="otp-5" oninput="otpInput(5)" onkeydown="otpKey(event,5)" />
+        </div>
+
+        <div class="demo-hint">
+          <span>Demo OTP:</span>
+          <button class="demo-fill" onclick="fillOTP('123456')">123456</button>
+        </div>
+
+        <button class="btn-primary" id="verify-btn" onclick="verifyOTP()">
+          Verify & Login ✓
+        </button>
+
+        <button class="resend-btn" onclick="sendOTP()">Resend OTP</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let currentPhone = '';
+
+    function fillDemo(num) {
+      document.getElementById('phone-input').value = num;
+    }
+
+    function fillOTP(code) {
+      [...code].forEach((d, i) => {
+        document.getElementById(`otp-${i}`).value = d;
+      });
+    }
+
+    async function sendOTP() {
+      const phone = document.getElementById('phone-input').value.trim();
+      if (phone.length !== 10) {
+        showToast('Enter a valid 10-digit number', 'error');
+        return;
+      }
+
+      setBtnLoading('send-otp-btn', true);
+
+      try {
+        const res = await fetch('/api/auth/demo-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          showToast(data.message, 'error');
+          return;
+        }
+
+        localStorage.setItem('ssrvm_demo_user', JSON.stringify(data.user));
+
+        currentPhone = phone;
+        document.getElementById('otp-subtitle').textContent = `Sent to +91 ${phone}`;
+        document.getElementById('step-phone').classList.add('hidden');
+        document.getElementById('step-otp').classList.remove('hidden');
+        document.getElementById('otp-0').focus();
+
+        showToast('OTP screen shown — use 123456 for demo', 'success');
+      } catch (err) {
+        showToast('Connection error', 'error');
+      } finally {
+        setBtnLoading('send-otp-btn', false);
+      }
+    }
+
+    function verifyOTP() {
+      const otp = [0,1,2,3,4,5].map(i =>
+        document.getElementById(`otp-${i}`).value
+      ).join('');
+
+      if (otp.length !== 6) {
+        showToast('Enter complete 6-digit OTP', 'error');
+        return;
+      }
+
+      setBtnLoading('verify-btn', true);
+
+      setTimeout(() => {
+        const user = JSON.parse(localStorage.getItem('ssrvm_demo_user'));
+        if (!user) { showToast('Session expired', 'error'); return; }
+
+        showToast(`Welcome, ${user.name}! 🙏`, 'success');
+
+        setTimeout(() => {
+          if (user.role === 'admin') {
+            window.location.href = '/admin';
+          } else {
+            window.location.href = '/parent/track.html';
+          }
+        }, 800);
+      }, 1000);
+    }
+
+    function backToPhone() {
+      document.getElementById('step-otp').classList.add('hidden');
+      document.getElementById('step-phone').classList.remove('hidden');
+    }
+
+    function otpInput(index) {
+      const val = document.getElementById(`otp-${index}`).value;
+      if (val && index < 5) document.getElementById(`otp-${index+1}`).focus();
+    }
+
+    function otpKey(e, index) {
+      if (e.key === 'Backspace' && !document.getElementById(`otp-${index}`).value && index > 0) {
+        document.getElementById(`otp-${index-1}`).focus();
+      }
+    }
+
+    function setBtnLoading(id, loading) {
+      const btn = document.getElementById(id);
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? '<span class="btn-spinner"></span> Loading...'
+        : (id === 'send-otp-btn' ? 'Get OTP →' : 'Verify & Login ✓');
+    }
+
+    function showToast(msg, type = 'info') {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.classList.add('show'), 10);
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+    }
+
+    // Check if already logged in
+    const existingUser = localStorage.getItem('ssrvm_demo_user');
+    if (existingUser) {
+      const u = JSON.parse(existingUser);
+      window.location.href = u.role === 'admin' ? '/admin' : '/parent/track.html';
+    }
+  </script>
+</body>
+</html>

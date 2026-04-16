@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Track Bus — SSRVM GPS</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body class="app-body">
+
+  <div class="app-shell">
+
+    <!-- Header -->
+    <header class="app-header" id="app-header">
+      <div class="header-left">
+        <div class="status-dot" id="status-dot"></div>
+        <div>
+          <div class="header-bus-name" id="header-bus">Bus —</div>
+          <div class="header-route" id="header-route">Loading route...</div>
+        </div>
+      </div>
+      <div class="live-badge" id="live-badge">◌ Connecting</div>
+    </header>
+
+    <!-- ETA Strip -->
+    <div class="eta-strip" id="eta-strip" style="display:none">
+      <div class="eta-left">
+        <span class="eta-number" id="eta-number">—</span>
+        <span class="eta-unit">min</span>
+      </div>
+      <div class="eta-center">
+        <div class="eta-label">Arrives at your stop</div>
+        <div class="eta-stop-name" id="eta-stop-name">—</div>
+      </div>
+      <div class="eta-speed" id="eta-speed">
+        <span class="speed-val" id="speed-val">0</span>
+        <span class="speed-unit">km/h</span>
+      </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab active" id="tab-map"   onclick="switchTab('map')">🗺️ Live Map</button>
+      <button class="tab"        id="tab-info"  onclick="switchTab('info')">🚌 Bus Info</button>
+      <button class="tab"        id="tab-stops" onclick="switchTab('stops')">📍 My Stop</button>
+    </div>
+
+    <!-- Map Tab -->
+    <div class="tab-content active" id="content-map">
+      <div id="map"></div>
+      <div class="map-overlay-controls">
+        <button class="map-fab active" id="follow-btn" onclick="toggleFollow()" title="Follow bus">🎯</button>
+      </div>
+    </div>
+
+    <!-- Info Tab -->
+    <div class="tab-content" id="content-info">
+      <div class="info-scroll">
+        <div class="info-section">
+          <h3 class="section-title">👦 Your Child</h3>
+          <div class="info-card">
+            <div class="info-row"><span class="lbl">Name</span><span class="val" id="i-student-name">—</span></div>
+            <div class="info-row"><span class="lbl">Class</span><span class="val" id="i-class">—</span></div>
+            <div class="info-row"><span class="lbl">Pickup Stop</span><span class="val" id="i-stop">—</span></div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3 class="section-title">🚌 Bus Details</h3>
+          <div class="info-card">
+            <div class="info-row"><span class="lbl">Bus Number</span><span class="val highlight" id="i-bus-num">—</span></div>
+            <div class="info-row"><span class="lbl">Route</span><span class="val" id="i-route">—</span></div>
+            <div class="info-row"><span class="lbl">Status</span><span class="val" id="i-status">—</span></div>
+            <div class="info-row"><span class="lbl">Current Speed</span><span class="val" id="i-speed">—</span></div>
+            <div class="info-row"><span class="lbl">Last Updated</span><span class="val" id="i-updated">—</span></div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3 class="section-title">👨‍✈️ Driver</h3>
+          <div class="info-card">
+            <div class="info-row"><span class="lbl">Name</span><span class="val" id="i-driver">—</span></div>
+            <div class="info-row">
+              <span class="lbl">Phone</span>
+              <a class="val phone-link" id="i-driver-phone" href="#">—</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="jgd-card">
+          <span>🌹</span>
+          <span>Jai Gurudev</span>
+          <span>🌹</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Stop Tab -->
+    <div class="tab-content" id="content-stops">
+      <div class="info-scroll">
+        <div class="my-stop-hero" id="my-stop-hero">
+          <div class="stop-icon">🏠</div>
+          <h2 id="my-stop-name">Your Stop</h2>
+          <div class="stop-distance" id="stop-distance">— km from bus</div>
+        </div>
+
+        <div class="info-card mt-16">
+          <div class="info-row">
+            <span class="lbl">ETA</span>
+            <span class="val eta-big" id="stop-eta">Calculating...</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">Bus Speed</span>
+            <span class="val" id="stop-speed">—</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">Bus Status</span>
+            <span class="val" id="stop-status">—</span>
+          </div>
+        </div>
+
+        <div class="notify-card" id="notify-card">
+          <div class="notify-icon">🔔</div>
+          <div>
+            <div class="notify-title">Bus Arriving Alert</div>
+            <div class="notify-sub">You'll be notified when bus is 500m away</div>
+          </div>
+          <div class="notify-toggle active">ON</div>
+        </div>
+
+        <button class="btn-secondary mt-16" onclick="openStopOnMap()">
+          📍 View Stop on Map
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <a href="/parent/track.html" class="nav-item active">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">Track</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showToast('Profile coming soon!', 'info'); return false;">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Profile</span>
+      </a>
+      <a href="/admin" class="nav-item">
+        <span class="nav-icon">🛡️</span>
+        <span class="nav-label">Admin</span>
+      </a>
+      <a href="/parent/login.html" class="nav-item" onclick="localStorage.clear();">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-label">Logout</span>
+      </a>
+    </nav>
+
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let map, busMarker, stopMarker, busPath;
+    let followBus = true;
+    let user = null;
+    let eventSource = null;
+    let targetLat = null, targetLng = null;
+    let displayLat = null, displayLng = null;
+    let lastUpdateTime = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      user = JSON.parse(localStorage.getItem('ssrvm_demo_user'));
+      if (!user || user.role === 'admin') { window.location.href = '/parent/login.html'; return; }
+
+      initMap();
+      populateStaticInfo();
+      connectSSE();
+      startInterpolation();
+    });
+
+    function initMap() {
+      const stopLat = user.student.pickupLat;
+      const stopLng = user.student.pickupLng;
+
+      map = L.map('map', {
+        center: [stopLat, stopLng],
+        zoom: 14,
+        zoomControl: false,
+        attributionControl: true
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+      }).addTo(map);
+
+      const stopIcon = L.divIcon({
+        className: '',
+        html: '<div class="stop-pin">🏠</div>',
+        iconSize: [36, 36],
+        iconAnchor: [18, 36]
+      });
+
+      stopMarker = L.marker([stopLat, stopLng], { icon: stopIcon })
+        .addTo(map)
+        .bindPopup(`<b>Your Stop</b><br>${user.student.pickupStop}`);
+
+      L.circle([stopLat, stopLng], {
+        radius: 200,
+        color: '#00d4aa',
+        fillColor: '#00d4aa',
+        fillOpacity: 0.08,
+        weight: 1.5
+      }).addTo(map);
+
+      busPath = L.polyline([], {
+        color: '#ff6b35',
+        weight: 3,
+        opacity: 0.6,
+        dashArray: '6 10'
+      }).addTo(map);
+    }
+
+    function populateStaticInfo() {
+      const s = user.student;
+      document.getElementById('header-bus').textContent     = `Bus ${s.busNumber}`;
+      document.getElementById('header-route').textContent   = s.routeName;
+      document.getElementById('i-student-name').textContent = s.name;
+      document.getElementById('i-class').textContent        = `Class ${s.class} - ${s.section}`;
+      document.getElementById('i-stop').textContent         = s.pickupStop;
+      document.getElementById('i-bus-num').textContent      = `Bus ${s.busNumber}`;
+      document.getElementById('i-route').textContent        = s.routeName;
+      document.getElementById('i-driver').textContent       = s.driverName;
+      document.getElementById('i-driver-phone').textContent = s.driverPhone;
+      document.getElementById('i-driver-phone').href        = `tel:${s.driverPhone}`;
+      document.getElementById('my-stop-name').textContent   = s.pickupStop;
+    }
+
+    function connectSSE() {
+      const busId = user.student.busId;
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource(`/api/track/${busId}`);
+
+      eventSource.onopen = () => setLiveBadge('live');
+
+      eventSource.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'LOCATION_UPDATE') onLocationUpdate(msg.data);
+        } catch (_) {}
+      };
+
+      eventSource.onerror = () => {
+        setLiveBadge('reconnecting');
+        eventSource.close();
+        setTimeout(connectSSE, 3000);
+      };
+    }
+
+    function onLocationUpdate(data) {
+      targetLat = data.lat;
+      targetLng = data.lng;
+      lastUpdateTime = Date.now();
+
+      if (data.pathHistory && data.pathHistory.length > 1) {
+        busPath.setLatLngs(data.pathHistory);
+      }
+
+      document.getElementById('i-status').textContent  = data.status === 'active' ? '🟢 Moving' : '🟡 Stopped';
+      document.getElementById('i-speed').textContent   = `${Math.round(data.speed)} km/h`;
+      document.getElementById('i-updated').textContent = new Date(data.lastUpdate).toLocaleTimeString('en-IN');
+
+      const eta = calculateETA(data.lat, data.lng, data.speed);
+      updateETA(eta, data.speed);
+
+      const dist = haversineKm(data.lat, data.lng, user.student.pickupLat, user.student.pickupLng);
+      document.getElementById('stop-distance').textContent = `${dist.toFixed(2)} km from your stop`;
+      document.getElementById('stop-speed').textContent    = `${Math.round(data.speed)} km/h`;
+      document.getElementById('stop-status').textContent   = data.status === 'active' ? 'Moving' : 'Stopped';
+      document.getElementById('stop-eta').textContent      = eta !== null ? `~${eta} minutes` : 'Calculating...';
+
+      document.getElementById('status-dot').className = `status-dot ${data.status}`;
+
+      if (dist < 0.5) {
+        showToast(`🚌 Bus is ${Math.round(dist * 1000)}m from your stop!`, 'info');
+      }
+    }
+
+    function startInterpolation() {
+      const tick = () => {
+        if (targetLat !== null && targetLng !== null) {
+          if (displayLat === null) {
+            displayLat = targetLat;
+            displayLng = targetLng;
+          }
+          displayLat = displayLat + (targetLat - displayLat) * 0.08;
+          displayLng = displayLng + (targetLng - displayLng) * 0.08;
+          updateBusMarkerOnMap(displayLat, displayLng);
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+
+    function updateBusMarkerOnMap(lat, lng) {
+      if (!map) return;
+      if (!busMarker) {
+        const busIcon = L.divIcon({
+          className: '',
+          html: `<div class="bus-pin-map moving"><span>🚌</span><div class="bus-pulse-ring"></div></div>`,
+          iconSize: [50, 50],
+          iconAnchor: [25, 25]
+        });
+        busMarker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
+        busMarker.bindPopup(`<b>Bus ${user.student.busNumber}</b><br>Driver: ${user.student.driverName}`);
+      } else {
+        busMarker.setLatLng([lat, lng]);
+      }
+      if (followBus) map.panTo([lat, lng], { animate: true, duration: 0.5 });
+    }
+
+    function calculateETA(busLat, busLng, speed) {
+      const dist = haversineKm(busLat, busLng, user.student.pickupLat, user.student.pickupLng);
+      const spd = speed > 5 ? speed : 20;
+      return Math.round((dist / spd) * 60);
+    }
+
+    function updateETA(mins, speed) {
+      const strip = document.getElementById('eta-strip');
+      strip.style.display = 'flex';
+      document.getElementById('eta-number').textContent    = mins;
+      document.getElementById('eta-stop-name').textContent = user.student.pickupStop;
+      document.getElementById('speed-val').textContent     = Math.round(speed);
+      const etaNum = document.getElementById('eta-number');
+      if (mins <= 3)      etaNum.style.color = '#ff4444';
+      else if (mins <= 8) etaNum.style.color = '#f7931e';
+      else                etaNum.style.color = '#00d4aa';
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      document.getElementById(`content-${tab}`).classList.add('active');
+      if (tab === 'map') setTimeout(() => map.invalidateSize(), 50);
+    }
+
+    function toggleFollow() {
+      followBus = !followBus;
+      document.getElementById('follow-btn').classList.toggle('active', followBus);
+      if (followBus && displayLat) map.panTo([displayLat, displayLng]);
+    }
+
+    function openStopOnMap() {
+      switchTab('map');
+      map.setView([user.student.pickupLat, user.student.pickupLng], 16);
+      followBus = false;
+    }
+
+    function setLiveBadge(state) {
+      const b = document.getElementById('live-badge');
+      const labels = { live: '● LIVE', reconnecting: '◌ Reconnecting', connecting: '◌ Connecting' };
+      b.textContent = labels[state] || '○ Offline';
+      b.className = `live-badge ${state}`;
+    }
+
+    function haversineKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function showToast(msg, type) {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.classList.add('show'), 10);
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 4000);
+    }
+  </script>
+</body>
+</html>

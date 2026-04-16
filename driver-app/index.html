@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Driver App — SSRVM GPS</title>
+  <link rel="stylesheet" href="../parent-app/css/app.css" />
+  <style>
+    body { margin: 0; }
+    .driver-shell {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .driver-header {
+      text-align: center;
+      padding: 20px 0 30px;
+    }
+
+    .driver-header .icon { font-size: 48px; }
+    .driver-header h1 { font-size: 22px; font-weight: 800; margin: 10px 0 4px; }
+    .driver-header p  { color: var(--muted); font-size: 13px; }
+
+    .driver-card {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .driver-card h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+    }
+
+    .status-toggle {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 12px;
+    }
+
+    .status-toggle.on-duty {
+      background: linear-gradient(135deg, #00d4aa, #00a88a);
+      color: #fff;
+    }
+
+    .status-toggle.off-duty {
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .sos-btn {
+      width: 100%;
+      padding: 16px;
+      background: rgba(255,68,68,.1);
+      border: 1px solid rgba(255,68,68,.3);
+      border-radius: 14px;
+      color: #ff4444;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sos-btn:hover { background: rgba(255,68,68,.2); }
+
+    .speed-display {
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .speed-big { font-size: 64px; font-weight: 900; color: #fff; line-height: 1; }
+    .speed-unit-big { font-size: 18px; color: var(--muted); }
+
+    .route-stops { list-style: none; }
+    .route-stop {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .route-stop:last-child { border: none; }
+    .stop-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .stop-num.done { background: rgba(0,212,170,.2); color: var(--teal); }
+    .stop-name { font-size: 14px; font-weight: 600; }
+    .stop-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+  <div class="driver-shell">
+
+    <div class="driver-header">
+      <div class="icon">🚌</div>
+      <h1>Driver App</h1>
+      <p>SSRVM GPS — Demo View</p>
+    </div>
+
+    <!-- Status -->
+    <div class="driver-card">
+      <h3>🟢 Duty Status</h3>
+      <button class="status-toggle on-duty" id="duty-btn" onclick="toggleDuty()">
+        ✅ On Duty — Bus 7 (Zoo Road Route)
+      </button>
+      <button class="sos-btn" onclick="sendSOS()">
+        🆘 SOS / Emergency
+      </button>
+    </div>
+
+    <!-- Speed -->
+    <div class="driver-card">
+      <h3>📊 Current Speed</h3>
+      <div class="speed-display">
+        <div class="speed-big" id="speed-display">28</div>
+        <div class="speed-unit-big">km/h</div>
+      </div>
+    </div>
+
+    <!-- Route Stops -->
+    <div class="driver-card">
+      <h3>📍 Today's Route Stops</h3>
+      <ul class="route-stops">
+        <li class="route-stop">
+          <div class="stop-num done">✓</div>
+          <div>
+            <div class="stop-name">Zoo Road Junction</div>
+            <div class="stop-time">Pickup: 7:15 AM — Done</div>
+          </div>
+        </li>
+        <li class="route-stop">
+          <div class="stop-num done">✓</div>
+          <div>
+            <div class="stop-name">Hatigaon Chariali</div>
+            <div class="stop-time">Pickup: 7:22 AM — Done</div>
+          </div>
+        </li>
+        <li class="route-stop">
+          <div class="stop-num" style="background:rgba(255,107,53,.2);color:#ff6b35">▶</div>
+          <div>
+            <div class="stop-name">GNB Road</div>
+            <div class="stop-time">Pickup: 7:30 AM — Current</div>
+          </div>
+        </li>
+        <li class="route-stop">
+          <div class="stop-num">4</div>
+          <div>
+            <div class="stop-name">SSRVM School</div>
+            <div class="stop-time">Arrive: ~7:45 AM</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Info -->
+    <div class="driver-card">
+      <h3>ℹ️ Bus Info</h3>
+      <div class="info-card">
+        <div class="info-row"><span class="lbl">Bus Number</span><span class="val highlight">7</span></div>
+        <div class="info-row"><span class="lbl">Route</span><span class="val">Zoo Road Route</span></div>
+        <div class="info-row"><span class="lbl">Driver</span><span class="val">Biren Kalita</span></div>
+        <div class="info-row"><span class="lbl">Students Today</span><span class="val">42</span></div>
+      </div>
+    </div>
+
+    <div class="jgd-card" style="margin-bottom: 30px;">
+      <span>🌹</span>
+      <span>Jai Gurudev — Drive Safe</span>
+      <span>🌹</span>
+    </div>
+
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let onDuty = true;
+
+    // Simulate speed changes
+    setInterval(() => {
+      const speeds = [0, 15, 22, 28, 35, 30, 25, 18, 32, 28];
+      const s = speeds[Math.floor(Math.random() * speeds.length)];
+      document.getElementById('speed-display').textContent = s;
+      document.getElementById('speed-display').style.color = s === 0 ? '#f7931e' : s > 40 ? '#ff4444' : '#fff';
+    }, 2000);
+
+    function toggleDuty() {
+      onDuty = !onDuty;
+      const btn = document.getElementById('duty-btn');
+      if (onDuty) {
+        btn.className = 'status-toggle on-duty';
+        btn.textContent = '✅ On Duty — Bus 7 (Zoo Road Route)';
+      } else {
+        btn.className = 'status-toggle off-duty';
+        btn.textContent = '⭕ Off Duty — Tap to go On Duty';
+      }
+      showToast(onDuty ? '🟢 You are now On Duty' : '⭕ You are now Off Duty', onDuty ? 'success' : 'info');
+    }
+
+    function sendSOS() {
+      showToast('🆘 SOS sent to school admin! Help is on the way.', 'error');
+    }
+
+    function showToast(msg, type) {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.classList.add('show'), 10);
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 4000);
+    }
+  </script>
+</body>
+</html>
